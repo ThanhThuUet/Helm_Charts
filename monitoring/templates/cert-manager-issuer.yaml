@@ -1,0 +1,17 @@
+{{- if .Values.certManager.enabled -}}
+apiVersion: cert-manager.io/v1alpha2
+kind: Issuer
+metadata:
+  name: {{ template "monitoring.fullname" . }}
+  labels: {{- include "monitoring.labels" . | nindent 4 }}
+spec:
+  acme:
+    server: {{ .Values.certManager.acme.server | quote }}
+    email: {{ .Values.certManager.acme.email | required "Email is required to acquire a TLS certificate" | quote }}
+    privateKeySecretRef:
+      name: {{ template "monitoring.fullname" . }}-acme-key
+    solvers:
+    - http01:
+        ingress:
+          class: {{ .Values.grafana.ingress.class }}
+{{- end -}}

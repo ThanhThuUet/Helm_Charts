@@ -1,0 +1,21 @@
+grafana:
+  enabled: true
+
+prometheus:
+  enabled: true
+
+metrics-server:
+  enabled: false
+  apiService:
+    create: true
+
+kube-eagle:
+  enabled: true
+  serviceMonitor:
+    create: true
+
+certManager:
+  enabled: false
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email:

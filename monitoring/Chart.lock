@@ -1,0 +1,15 @@
+dependencies:
+- name: prometheus-operator
+  repository: https://charts.bitnami.com/bitnami
+  version: 0.27.0
+- name: grafana
+  repository: https://charts.bitnami.com/bitnami
+  version: 3.3.1
+- name: metrics-server
+  repository: https://charts.bitnami.com/bitnami
+  version: 4.3.0
+- name: kube-eagle
+  repository: https://raw.githubusercontent.com/cloudworkz/kube-eagle-helm-chart/master
+  version: 1.1.6
+digest: sha256:0927ec60391bfe07eb9953f45472ba09ee43f497b1eee31d13d1559fbf210ddb
+generated: "2020-08-04T18:11:25.168279704+07:00"
