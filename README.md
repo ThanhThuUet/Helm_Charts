@@ -1,1 +1,1 @@
-# Helm charts monitoring using Prometheus + Grafana
+# Helm charts for Kubernetes
