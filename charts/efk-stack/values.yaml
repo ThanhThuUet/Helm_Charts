@@ -1,0 +1,6 @@
+elasticsearch:
+  enabled: true
+fluentd:
+  enabled: true
+kibana:
+  enabled: true
