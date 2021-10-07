@@ -1,0 +1,228 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-forwarder
+data:
+  fluentd.conf: |
+
+    # Ignore fluentd own events
+    <label @FLUENT_LOG>
+      <match fluent.*>
+        @type null
+      </match>
+    </label>
+    # <match fluent.**>
+    #   @type null
+    # </match>
+
+    # HTTP input for the liveness and readiness probes
+    <source>
+      @type http
+      port 9880
+    </source>
+
+    # Get the logs from the containers running in the cluster
+    <source>
+      @type tail
+      path "/var/log/containers/*.log"
+      exclude_path /var/log/containers/*fluentd*.log
+      pos_file "/opt/bitnami/fluentd/logs/buffers/fluentd-docker.pos"
+      tag "raw.kubernetes.*"
+      read_from_head true
+      <parse>
+        @type "json"
+        time_key "time"
+        time_format "%Y-%m-%dT%H:%M:%S.%NZ"
+        # emit_unmatched_lines
+        # unmatched_lines
+        time_type string
+      </parse>
+    </source>
+
+    <match raw.kubernetes.**>
+      @type detect_exceptions
+      remove_tag_prefix raw
+      message log
+      languages all
+      multiline_flush_interval 1
+    </match>
+
+    # exclude all messages that are empty or include only white-space
+    <filter kubernetes.**>
+      @type grep
+      <exclude>
+        key log
+        pattern /^\s*$/
+      </exclude>
+    </filter>
+
+    # # Concatenate multi-line logs
+    # <filter kubernetes.**>
+    #   @type concat
+    #   key log
+    #   multiline_start_regexp /^FATAL|ERROR|WARNING.*/
+    #   # multiline_start_regexp /^(?<level>[^\s]+)  (?<message>.*)/
+    #   # continuous_line_regexp /^at.*/
+    #   multiline_end_regexp /\n$/
+    #   flush_interval 1
+    # </filter>
+
+    # format json for log feild
+    <filter kubernetes.**>
+      @type parser
+      key_name log
+      # hash_value_field "log"
+      reserve_data true
+      <parse>
+        @type json
+      </parse>
+    </filter>
+
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+    </filter>
+
+    # Ingress Nginx log
+    <filter kubernetes.var.log.containers.**ingress-nginx**.log>
+      @type parser
+      key_name log
+      reserve_data true
+      # remove_key_name_field true
+      <parse>
+        @type multi_format
+        # access log
+        <pattern>
+          format regexp
+          expression /^(?<nginx_access_remote_addr>[^ ]*) (?<nginx_access_host>[^ ]*) (?<nginx_access_remote_user>[^ ]*) \[(?<nginx_access_time>[^\]]*)\] "(?<nginx_access_method>\S+)(?: +(?<nginx_access_path>[^\"]*?)(?: +\S*)?)?" (?<nginx_access_code>[^ ]*) (?<nginx_access_size>[^ ]*)(?: "(?<nginx_access_referer>[^\"]*)" "(?<nginx_access_agent>[^\"]*)?)?" (?<nginx_access_request_length>[^ ]*) (?<nginx_access_request_time>[^ ]*) \[(?<nginx_access_proxy_upstream>[^ ]*)\] \[(?<nginx_access_proxy_alternative_upstream>[^ ]*)\] (?<nginx_access_upstream_addr>[^ ]*) (?<nginx_access_upstream_response_length>[^ ]*) (?<nginx_access_upstream_response_time>[^ ]*) (?<nginx_access_upstream_status>[^ ]*) (?<nginx_access_req_id>[^ ]*)$/
+          time_format %d/%b/%Y:%H:%M:%S %z
+        </pattern>
+        # error log
+        <pattern>
+          format regexp
+          expression /^(?<nginx_error_time>[^ ]* [^ ]*) \[(?<nginx_error_log_level>\w+)\] (?<nginx_error_pid>\d+).(?<nginx_error_tid>\d+): \*(?<nginx_error_connection_id>\d+) (?<nginx_error_message>[\s\S]*)$/
+          time_format %Y/%m/%d %H:%M:%S
+        </pattern>
+      </parse>
+    </filter>
+
+    # viblo-images log
+    <filter kubernetes.var.log.containers.**viblo-images**.log>
+      @type parser
+      key_name log
+      reserve_data true
+      <parse>
+        @type multi_format
+        # imaginary access log
+        <pattern>
+          format regexp
+          expression /^(?<imaginary_access_remote_addr>[^ ]*) (?<imaginary_access_host>[^ ]*) (?<imaginary_access_remote_user>[^ ]*) \[(?<imaginary_access_time>[^\]]*)\] "(?<imaginary_access_method>\S+)(?: +(?<imaginary_access_path>[^\"]*?)(?: +\S*)?)?" (?<imaginary_access_code>[^ ]*) (?<imaginary_access_size>[^ ]*) (?<imaginary_access_request_time>[^ ]*)$/
+          time_format %d/%b/%Y %H:%M:%S
+        </pattern>
+        # viblo-image nginx access log
+        <pattern>
+          format regexp
+          expression /^(?<viblo_image_access_remote_addr>[^ ]*) (?<viblo_image_access_host>[^ ]*) (?<viblo_image_access_remote_user>[^ ]*) \[(?<viblo_image_access_time>[^\]]*)\] "(?<viblo_image_access_method>\S+)(?: +(?<viblo_image_access_path>[^\"]*?)(?: +\S*)?)?" (?<viblo_image_access_code>[^ ]*) (?<viblo_image_access_size>[^ ]*)(?: "(?<viblo_image_access_referer>[^\"]*)" "(?<viblo_image_access_agent>[^\"]*)?)?" "(?<viblo_image_access_upstream_addr>[^ ]*)"$/
+          time_format %d/%b/%Y:%H:%M:%S %z
+        </pattern>
+        # viblo-images nginx error log
+        <pattern>
+          format regexp
+          expression /^(?<viblo_image_error_time>[^ ]* [^ ]*) \[(?<viblo_image_error_log_level>\w+)\] (?<viblo_image_error_pid>\d+).(?<viblo_image_error_tid>\d+): \*(?<viblo_image_connection_id>\d+) (?<viblo_image_error_message>[\s\S]*)$/
+        </pattern>
+      </parse>
+    </filter>
+
+    # viblo-ctf log
+    <filter kubernetes.var.log.containers.**viblo-ctf**.log>
+      @type parser
+      key_name log
+      reserve_data true
+      <parse>
+        @type multi_format
+        # php-fpm access log
+        <pattern>
+          format regexp
+          expression /^(?<php_access_ip_requester>[^ ]*) (?<php_access_remote_user>[^ ]*) (?<php_access_time>[^\]]*) "(?<php_access_method>\S+)(?: +(?<php_access_path>[^\"]*?)(?: +\S*)?)?" (?<php_access_code>[^ ]*)$/
+          time_format %d/%b/%Y:%H:%M:%S %z
+        </pattern>
+        <pattern>
+            format none
+        </pattern>
+      </parse>
+    </filter>
+
+    # viblo-learning log
+    <filter kubernetes.var.log.containers.**viblo-learning**.log>
+      @type parser
+      key_name log
+      reserve_data true
+      <parse>
+        @type multi_format
+        # images access log
+        <pattern>
+          format regexp
+          expression /^(?<viblo_learn_images_remote_addr>[^ ]*) (?<viblo_learn_images_access_host>[^ ]*) (?<viblo_learn_images_access_remote_user>[^ ]*) \[(?<viblo_learn_images_access_time>[^\]]*)\] "(?<viblo_learn_images_access_method>\S+)(?: +(?<viblo_learn_images_access_path>[^\"]*?)(?: +\S*)?)?" (?<viblo_learn_images_access_code>[^ ]*) (?<viblo_learn_images_access_size>[^ ]*)(?: "(?<viblo_learn_images_access_referer>[^\"]*)" "(?<viblo_learn_images_access_agent>[^\"]*)?)?" "(?<viblo_learn_images_access_upstream_addr>[^ ]*)"$/
+          time_format %d/%b/%Y:%H:%M:%S %z
+        </pattern>
+        # images error error log
+        <pattern>
+          format regexp
+          expression /^(?<viblo_learn_images_error_time>[^ ]* [^ ]*) \[(?<viblo_learn_images_error_log_level>\w+)\] (?<viblo_learn_images_error_pid>\d+).(?<viblo_learn_images_error_tid>\d+): \*(?<viblo_learn_images_connection_id>\d+) (?<viblo_learn_images_error_message>[\s\S]*)$/
+        </pattern>
+      </parse>
+    </filter>
+
+    <match kubernetes.var.log.containers.**kube-system**.log>
+      @type null
+    </match>
+
+    <match kubernetes.var.log.containers.**monitoring**.log>
+      @type null
+    </match>
+
+    <match kubernetes.var.log.containers.**efk-stack**.log>
+      @type null
+    </match>
+
+    <match kubernetes.var.log.containers.**test**.log>
+      @type null
+    </match>
+
+    <match kubernetes.var.log.containers.**cronjobs**.log>
+      @type null
+    </match>
+
+    <match kubernetes.var.log.containers.**cronjobs**.log>
+      @type null
+    </match>
+
+    <match kubernetes.var.log.containers.**cert-manager**.log>
+      @type null
+    </match>
+
+    # Throw the healthcheck to the standard output instead of forwarding it
+    <match fluentd.healthcheck>
+      @type stdout
+    </match>
+
+    # remove ansi colors codes
+    <match kubernetes.**>
+      @type color_stripper
+      strip_fields log
+      tag output.end
+    </match>
+
+    # Forward all logs to the aggregators
+    <match output.end>
+      @type forward
+      <server>
+        host "#{ENV['AGGREGATOR_HOST']}"
+        port "#{ENV['AGGREGATOR_PORT']}"
+      </server>
+      <buffer>
+        @type "file"
+        path "/opt/bitnami/fluentd/logs/buffers/logs.buffer"
+        flush_thread_count 2
+        flush_interval 5s
+      </buffer>
+    </match>
