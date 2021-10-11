@@ -56,17 +56,6 @@ data:
       </exclude>
     </filter>
 
-    # # Concatenate multi-line logs
-    # <filter kubernetes.**>
-    #   @type concat
-    #   key log
-    #   multiline_start_regexp /^FATAL|ERROR|WARNING.*/
-    #   # multiline_start_regexp /^(?<level>[^\s]+)  (?<message>.*)/
-    #   # continuous_line_regexp /^at.*/
-    #   multiline_end_regexp /\n$/
-    #   flush_interval 1
-    # </filter>
-
     # format json for log feild
     <filter kubernetes.**>
       @type parser
@@ -118,13 +107,13 @@ data:
           expression /^(?<imaginary_access_remote_addr>[^ ]*) (?<imaginary_access_host>[^ ]*) (?<imaginary_access_remote_user>[^ ]*) \[(?<imaginary_access_time>[^\]]*)\] "(?<imaginary_access_method>\S+)(?: +(?<imaginary_access_path>[^\"]*?)(?: +\S*)?)?" (?<imaginary_access_code>[^ ]*) (?<imaginary_access_size>[^ ]*) (?<imaginary_access_request_time>[^ ]*)$/
           time_format %d/%b/%Y %H:%M:%S
         </pattern>
-        # viblo-image nginx access log
+        # nginx access log
         <pattern>
           format regexp
           expression /^(?<viblo_image_access_remote_addr>[^ ]*) (?<viblo_image_access_host>[^ ]*) (?<viblo_image_access_remote_user>[^ ]*) \[(?<viblo_image_access_time>[^\]]*)\] "(?<viblo_image_access_method>\S+)(?: +(?<viblo_image_access_path>[^\"]*?)(?: +\S*)?)?" (?<viblo_image_access_code>[^ ]*) (?<viblo_image_access_size>[^ ]*)(?: "(?<viblo_image_access_referer>[^\"]*)" "(?<viblo_image_access_agent>[^\"]*)?)?" "(?<viblo_image_access_upstream_addr>[^ ]*)"$/
           time_format %d/%b/%Y:%H:%M:%S %z
         </pattern>
-        # viblo-images nginx error log
+        # nginx error log
         <pattern>
           format regexp
           expression /^(?<viblo_image_error_time>[^ ]* [^ ]*) \[(?<viblo_image_error_log_level>\w+)\] (?<viblo_image_error_pid>\d+).(?<viblo_image_error_tid>\d+): \*(?<viblo_image_connection_id>\d+) (?<viblo_image_error_message>[\s\S]*)$/
